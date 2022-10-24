@@ -16,15 +16,9 @@ func (r *UserRepository) Create(u *pb.UserModel) (error) {
 		return err
 	}
 
-	u, err := model.BeforeCreate(u)
-	if err != nil {
-		return err
-	}
-
 	return r.store.db.QueryRow(
-		"INSERT INTO users (username, encrypted_password, email, external_wallet_addr, 	created_on) VALUES ($1, $2, $3, $4, $5) RETURNING user_id",
+		"INSERT INTO users (username, email, external_wallet_addr, created_on) VALUES ($1, $2, $3, $4) RETURNING user_id",
 		u.UserName,
-		u.EncryptedPassword,
 		u.Email,
 		u.ExternalWalletAddr,
 		u.CreatedOn.AsTime(),
@@ -38,7 +32,6 @@ func (r *UserRepository) FindByEmail(email string) (*pb.UserModel, error) {
 		email).Scan(
 			&u.UserId,
 			&u.UserName,
-			&u.EncryptedPassword,
 			&u.Email,
 			&u.ExternalWalletAddr,
 			&u.Gain,
