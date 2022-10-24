@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	wc_pb "gowallet/cmd/walletcreator/proto"
+	"gowallet/interfaces"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -21,7 +22,9 @@ import (
 
 // ApiWalletCreatorServer...
 type ApiWalletCreatorServer struct {
+	interfaces.Server
 	wc_pb.UnimplementedWalletCreatorServer
+
 	config *WallerCreatorConfig
 	logger *logrus.Logger
 	server *grpc.Server

@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	pb_v "gowallet/cmd/vaultworker/proto"
+	"gowallet/interfaces"
 
 	v "github.com/hashicorp/vault/api"
 	"github.com/oklog/run"
@@ -19,7 +20,9 @@ import (
 
 // ApiVaultServer...
 type ApiVaultServer struct {
+	interfaces.Server
 	pb_v.UnimplementedVaultWorkerServer
+
 	logger *logrus.Logger
 	config *VaultConfig
 	vaultClient *v.Client

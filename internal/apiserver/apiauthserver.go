@@ -14,6 +14,8 @@ import (
 	apipsqlserver "gowallet/cmd/psg_worker/proto"
 	apivaultserver "gowallet/cmd/vaultworker/proto"
 
+	"gowallet/interfaces"
+
 	"github.com/oklog/run"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -22,7 +24,9 @@ import (
 
 // ApiAuthServer...
 type ApiAuthServer struct {
+	interfaces.Server
 	apiauthserver.UnimplementedApiAuthServerServer
+
 	logger *logrus.Logger
 	config *AuthConfig
 	server *grpc.Server

@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	pb_psql "gowallet/cmd/psg_worker/proto"
+	"gowallet/interfaces"
 	"gowallet/internal/store"
 
 	"github.com/oklog/run"
@@ -19,7 +20,9 @@ import (
 
 // Postgres server struct
 type ApiPSQLServer struct {
+	interfaces.Server
 	pb_psql.UnimplementedApiPSQLServerServer
+
 	config *PSQLConfig
 	logger *logrus.Logger
 	store  *store.Store
