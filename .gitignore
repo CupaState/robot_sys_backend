@@ -1,0 +1,13 @@
+go.mod
+go.sum
+envpath.sh
+help.txt
+cmd/authenticator/cert.pem
+cmd/authenticator/key.pem
+configs/
+index.html
+test/
+cmd/authenticator/proto/*.pb.go
+cmd/psg_worker/proto/*.pb.go
+cmd/vaultworker/proto/*pb.go
+cmd/walletcreator/proto/*pb.go

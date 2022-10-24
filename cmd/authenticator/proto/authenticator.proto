@@ -1,0 +1,25 @@
+syntax="proto3";
+
+option go_package="./apiauthserver";
+
+//export PATH="$PATH:$(go env GOPATH)/bin"
+/*protoc --go_out=. --go_opt=paths=source_relative \
+--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+proto/authenticator.proto*/
+
+// === Api Methods
+
+service ApiAuthServer {
+  rpc Registration(RegistrationRequest) returns (RegistrationResponse) {}
+}
+
+// === Api Methods
+
+// === TYPES
+message RegistrationRequest {
+  string Username = 1;
+  string Password = 2;
+}
+
+message RegistrationResponse {
+}

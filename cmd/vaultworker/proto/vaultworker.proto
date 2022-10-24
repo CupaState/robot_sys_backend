@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package main;
+
+option go_package = "./apivaultserver";
+
+//export PATH="$PATH:$(go env GOPATH)/bin"
+/*protoc --go_out=. --go_opt=paths=source_relative \
+--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+proto/vaultworker.proto*/
+
+service VaultWorker {
+  /*  ENCRYPT  */
+  rpc EncryptPassword (VaultWorkerPasswordEncryptRequest) returns (VaultWorkerDefaultEncryptResponse) {}
+  rpc EncryptInternalWalletAddr (VaultWorkerInternalWalletAddrEncryptRequest) returns (VaultWorkerDefaultEncryptResponse) {}
+  rpc EncryptPrivateKey (VaultWorkerPrivateKeyEncryptRequest) returns (VaultWorkerDefaultEncryptResponse) {}
+  
+  /*  DECRYPT  */
+  rpc DecryptPassword (VaultWorkerPasswordDecryptRequest) returns (VaultWorkerPasswordDecryptResponse) {}
+  rpc DecryptPrivateKey (VaultWorkerPrivateKeyDecryptRequest) returns (VaultWorkerPrivateKeyDecryptResponse) {}
+  rpc DecryptInternalWalletAddr (VaultWorkerInternalWalletAddrDecryptRequest) returns (VaultWorkerInternalWalletAddrDecryptRespone) {}
+}
+
+/* -------- ENCRYPTION TYPES -------- */
+
+message VaultWorkerDefaultEncryptRequest {
+  string username = 1;
+  string private_key = 2; // private key of internal wallet
+  string addr = 3; // address (public key) of internal wallet
+  string password = 4; // user`s password in system 
+}
+
+message VaultWorkerDefaultEncryptResponse {
+}
+
+message VaultWorkerPasswordEncryptRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message VaultWorkerInternalWalletAddrEncryptRequest {
+  string username = 1;
+  string walletAddr = 2;
+}
+
+message VaultWorkerPrivateKeyEncryptRequest {
+  string username = 1;
+  string privateKey = 2;
+}
+
+/* -------- DECRYPTION TYPES -------- */
+
+message VaultWorkerInternalWalletAddrDecryptRequest {
+  string username = 1;
+}
+
+message VaultWorkerInternalWalletAddrDecryptRespone {
+  string walletAddr = 1;
+}
+
+message VaultWorkerPasswordDecryptRequest {
+  string username = 1;
+}
+
+message VaultWorkerPasswordDecryptResponse {
+  string password = 1;
+}
+
+message VaultWorkerPrivateKeyDecryptRequest {
+  string username = 1;
+}
+
+message VaultWorkerPrivateKeyDecryptResponse {
+  string pk = 1;
+}

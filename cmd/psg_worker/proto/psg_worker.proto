@@ -1,0 +1,47 @@
+syntax="proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option go_package="./apipsqlserver";
+
+//export PATH="$PATH:$(go env GOPATH)/bin"
+/*protoc --go_out=. --go_opt=paths=source_relative \
+--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+proto/psg_worker.proto*/
+
+message UserModel {
+  int64 UserId = 1;
+  string UserName = 2;
+  string Email = 3;
+  string Password = 4;
+  string EncryptedPassword = 5;
+  string ExternalWalletAddr = 6;
+  double Gain = 7;
+  double TotalGain = 8;
+  double PaidMoney = 9;
+  google.protobuf.Timestamp CreatedOn = 10;
+  google.protobuf.Timestamp LastLogin = 11;  
+}
+
+// === ApiPSQLServer
+service ApiPSQLServer {
+  rpc CreateUser(UserCreateRequest) returns (UserCreateResponse) {}
+  rpc FindUserByEmail(FindUserByEmailRequest) returns (FindUserByEmailResponse) {}
+}
+// === ApiPSQLServer
+
+message UserCreateRequest {
+  UserModel u = 1;
+}
+
+message UserCreateResponse {
+  
+}
+
+message FindUserByEmailRequest {
+  string email = 1;
+}
+
+message FindUserByEmailResponse {
+  UserModel u = 1;
+}
