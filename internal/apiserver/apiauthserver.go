@@ -205,7 +205,7 @@ func (s *ApiAuthServer) initVaultClient() error {
 }
 
 func (s *ApiAuthServer) initWalletCreatorClient() error {
-	//Set up connection to the vault server
+	//Set up connection to the walletcreator server
 	conn, err := grpc.Dial(
 		fmt.Sprintf(":%d", s.config.WalletCreatorPort), 
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -220,7 +220,7 @@ func (s *ApiAuthServer) initWalletCreatorClient() error {
 }
 
 func (s *ApiAuthServer) initPSQLClient() error {
-	//Set up connection to the vault server
+	//Set up connection to the psql server
 	conn, err := grpc.Dial(
 		fmt.Sprintf(":%d", s.config.PSQLPort), 
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
