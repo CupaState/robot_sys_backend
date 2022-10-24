@@ -26,6 +26,16 @@ type ApiAuthServer struct {
 	logger *logrus.Logger
 	config *AuthConfig
 	server *grpc.Server
+
+	// clients:
+	vaultClient apivaultserver.VaultWorkerClient
+	walletCreatorClient apiwalletcreatorserver.WalletCreatorClient
+	psqlClient apipsqlserver.ApiPSQLServerClient
+
+	// connections:
+	vaultConn *grpc.ClientConn
+	walletCreatorConn *grpc.ClientConn
+	psqlConn *grpc.ClientConn
 }
 
 // NewApiAuthServer...
@@ -43,6 +53,22 @@ func (s *ApiAuthServer) Start() {
 	if err := s.configureAuthLogger(); err != nil {
 		s.logger.Error(err)
 	}
+
+	if err := s.initVaultClient(); err != nil {
+		s.logger.Error(err)
+	}
+	s.logger.Info("VaultWorker Client is initialized")
+	
+	if err := s.initWalletCreatorClient(); err != nil {
+		s.logger.Error(err)
+	}
+	s.logger.Info("WalletCreator Client is initialized")
+	
+	if err := s.initPSQLClient(); err != nil {
+		s.logger.Error(err)
+	}
+	s.logger.Info("PSQL Client is initialized")
+
 	s.logger.Info("Server is initialized...")
 	
 	apiauthserver.RegisterApiAuthServerServer(s.server, s)
@@ -78,6 +104,9 @@ func (s *ApiAuthServer) Start() {
 
 			s.logger.Exit(0)
 			s.server.GracefulStop()
+			s.psqlConn.Close()
+			s.vaultConn.Close()
+			s.walletCreatorConn.Close()
 		})
 	}
 
@@ -93,46 +122,12 @@ func (s *ApiAuthServer) Registration(
 	u := &apipsqlserver.UserModel{UserName: in.GetUsername(), Password: in.GetPassword()}
 	model.Validate(u)
 
-	u, err := s.putPasswordToVault(u)
-	if err != nil {
-		s.logger.Error(err)
-	}
-	s.logger.Info("Password putted to vault")
-
-	
-	walletAddr, privateKey, err := s.createWallet(u)
-	if err != nil {
-		s.logger.Error(err)
-	}
-	err = s.putWalletDataToVault(u, walletAddr, privateKey)
-	s.logger.Info("Internal Wallet Address and Private Key has been putted to vault")
-	
-	err = s.putToDatabase(u)
-	s.logger.Info("User putted to database")
-
-	return &apiauthserver.RegistrationResponse{}, nil
-}
-
-// === PRIVATE METHODS
-// putPasswordToVault...
-func (s *ApiAuthServer) putPasswordToVault(u *apipsqlserver.UserModel) (*apipsqlserver.UserModel, error) {
-	//Set up connection to the vault server
-	connVault, err := grpc.Dial(
-		fmt.Sprintf(":%d", s.config.VaultPort), 
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
-	
-	if err != nil {
-		return nil, err
-	}
-	defer connVault.Close()
-
-	client := apivaultserver.NewVaultWorkerClient(connVault)
-	
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx_cancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	_, err = client.EncryptPassword(
-		ctx,
+	// Vault
+	_, err := s.vaultClient.EncryptPassword(
+		ctx_cancel,
 		&apivaultserver.VaultWorkerPasswordEncryptRequest{
 			Username: u.UserName,
 			Password: u.Password,
@@ -143,109 +138,100 @@ func (s *ApiAuthServer) putPasswordToVault(u *apipsqlserver.UserModel) (*apipsql
 		return nil, err
 	}
 
-	u.Password = ""
-	return u, nil
-}
+	u.Password = "" // crearing password string
+	s.logger.Info("Password putted to vault")
 
-// putToDatabase...
-func (s *ApiAuthServer) putToDatabase(u *apipsqlserver.UserModel) (error) {
-	connPSQL, err := grpc.Dial(
-		fmt.Sprintf(":%d", s.config.PSQLPort),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return err
-	}
-	defer connPSQL.Close()
-
-	client := apipsqlserver.NewApiPSQLServerClient(connPSQL)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	_, err = client.CreateUser(
-		ctx,
-		&apipsqlserver.UserCreateRequest{
-			U: u,
-		},
-	)
-
-	return nil
-}
-
-// putWalletDataToVault...
-func (s *ApiAuthServer) putWalletDataToVault(u *apipsqlserver.UserModel, walletAddr, privateKey string) error {
-	connVault, err := grpc.Dial(
-		fmt.Sprintf(":%d", s.config.VaultPort), 
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
-	
-	if err != nil {
-		return err
-	}
-	defer connVault.Close()
-
-	client := apivaultserver.NewVaultWorkerClient(connVault)
-	
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	/*  encrypt data  */
-	_, err = client.EncryptInternalWalletAddr(
-		ctx, 
-		&apivaultserver.VaultWorkerInternalWalletAddrEncryptRequest{
-			Username: u.UserName, 
-			WalletAddr: walletAddr,
-		})
-	
-		if err != nil {
-		return err
-	}
-
-	_, err = client.EncryptPrivateKey(
-		ctx, 
-		&apivaultserver.VaultWorkerPrivateKeyEncryptRequest{
-			Username: u.UserName, 
-			PrivateKey: privateKey,
-		})
-	if err != nil {
-		return err
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// createWallet...
-func (s *ApiAuthServer) createWallet(u *apipsqlserver.UserModel) (string, string, error) {
-	connWallet, err := grpc.Dial(
-		fmt.Sprintf(":%d", s.config.WalletCreatorPort), 
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
-	
-	if err != nil {
-		return "", "", err
-	}
-	defer connWallet.Close()
-
-	client := apiwalletcreatorserver.NewWalletCreatorClient(connWallet)
-	
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	r, err := client.NewWallet(
-		ctx,
+	// WalletCreator
+	r, err := s.walletCreatorClient.NewWallet(
+		ctx_cancel,
 		&apiwalletcreatorserver.WalletCreatorRequest{
 			UserName: u.UserName,
 		},
 	)
 
 	if err != nil {
-		return "", "", err
+		s.logger.Error(err)
 	}
 
-	return r.WalletAddr, r.PrivateKey, nil
+	_, err = s.vaultClient.EncryptInternalWalletAddr(
+		ctx_cancel, 
+		&apivaultserver.VaultWorkerInternalWalletAddrEncryptRequest{
+			Username: u.UserName, 
+			WalletAddr: r.WalletAddr,
+		})
+	
+	if err != nil {
+		s.logger.Error(err)
+	}
+
+	_, err = s.vaultClient.EncryptPrivateKey(
+		ctx_cancel, 
+		&apivaultserver.VaultWorkerPrivateKeyEncryptRequest{
+			Username: u.UserName, 
+			PrivateKey: r.PrivateKey,
+		})
+	
+	if err != nil {
+		s.logger.Error(err)
+	}
+
+	s.logger.Info("Internal Wallet Address and Private Key has been putted to vault")
+	
+	_, err = s.psqlClient.CreateUser(
+		ctx_cancel,
+		&apipsqlserver.UserCreateRequest{
+			U: u,
+		},
+	)
+	s.logger.Info("User putted to database")
+
+	return &apiauthserver.RegistrationResponse{}, nil
+}
+
+// === PRIVATE METHODS
+func (s *ApiAuthServer) initVaultClient() error {
+	//Set up connection to the vault server
+	conn, err := grpc.Dial(
+		fmt.Sprintf(":%d", s.config.VaultPort), 
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	
+	if err != nil {
+		return err
+	}
+
+	s.vaultConn = conn
+	s.vaultClient = apivaultserver.NewVaultWorkerClient(conn)
+	return nil
+}
+
+func (s *ApiAuthServer) initWalletCreatorClient() error {
+	//Set up connection to the vault server
+	conn, err := grpc.Dial(
+		fmt.Sprintf(":%d", s.config.WalletCreatorPort), 
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	
+	if err != nil {
+		return err
+	}
+
+	s.walletCreatorConn = conn
+	s.walletCreatorClient = apiwalletcreatorserver.NewWalletCreatorClient(conn)
+	return nil
+}
+
+func (s *ApiAuthServer) initPSQLClient() error {
+	//Set up connection to the vault server
+	conn, err := grpc.Dial(
+		fmt.Sprintf(":%d", s.config.PSQLPort), 
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	
+	if err != nil {
+		return err
+	}
+
+	s.psqlConn = conn
+	s.psqlClient = apipsqlserver.NewApiPSQLServerClient(conn)
+	return nil
 }
 
 // ============= CONFIGURATION METHODS
