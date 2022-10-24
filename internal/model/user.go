@@ -18,12 +18,6 @@ func Validate(u *pb.UserModel) error {
 	)
 }
 
-// ClearPassword ...
-func ClearPassword(u *pb.UserModel) *pb.UserModel {
-	u.Password = ""
-	return u
-}
-
 // ComparePassword ...
 func ComparePassword(u *pb.UserModel, password string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(u.EncryptedPassword), []byte(password)) == nil
