@@ -180,7 +180,7 @@ func (s *ApiAuthServer) Registration(
 	}
 
 	s.logger.Info("Internal Wallet Address and Private Key has been putted to vault")
-	
+
 	_, err = s.psqlClient.CreateUser(
 		ctx_cancel,
 		&apipsqlserver.UserCreateRequest{
